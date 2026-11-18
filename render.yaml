@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: enrique-rickmorty
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: PUSH_SEND_TOKEN
+        generateValue: true
+      - key: SHOPSTORE_ADMIN_PASSWORD
+        generateValue: true

@@ -1,0 +1,59 @@
+<header class="navbar">
+  <a class="logo" routerLink="/">RICK<span> & MORTY</span></a>
+  <div class="nav-text">Explorador de Enrique</div>
+  <a routerLink="/acerca">Acerca del proyecto</a>
+</header>
+<section class="hero"><div>
+  <p class="subtitle">EXPLORA EL MULTIVERSO</p>
+  <h1>Descubre personajes.<br>Construye tu colección.</h1>
+  <p class="description">Busca, guarda tus favoritos y escribe tus propias notas.</p>
+</div></section>
+<router-outlet />
+<main class="container">
+  <div class="notification-actions">
+    @if (push.isSupported) {
+      <button type="button" (click)="push.toggle()" [disabled]="push.changingSubscription()">{{ push.enabled() ? 'Desactivar avisos' : 'Activar avisos' }}</button>
+      @if (push.enabled()) { <button type="button" (click)="testNotification()" [disabled]="sending()">Enviar aviso de prueba</button> }
+    }
+    <a [href]="push.adminUrl">Administrar avisos</a>
+    <p role="status">{{ push.lastResult() }}</p>
+  </div>
+  <div class="section-heading">
+    <div><h2>Explorador de personajes</h2><p>Consulta el universo de Rick y Morty.</p></div>
+    <span class="counter">{{ info().count }} resultados</span>
+  </div>
+  <form class="filters" (ngSubmit)="search()">
+    <input aria-label="Nombre del personaje" placeholder="Buscar personaje…" name="name" [(ngModel)]="name" />
+    <select aria-label="Estado del personaje" name="status" [(ngModel)]="status">
+      <option value="">Todos los estados</option><option value="alive">Vivos</option>
+      <option value="dead">Muertos</option><option value="unknown">Desconocidos</option>
+    </select>
+    <button type="submit">Buscar</button>
+  </form>
+  <p role="status">{{ notice() }}</p>
+  @if (cached()) { <p>Mostrando una copia guardada de esta búsqueda.</p> }
+  @if (loading()) { <p class="message" role="status">Cargando personajes…</p> }
+  @else if (error()) { <div class="message error" role="alert">{{ error() }} <button type="button" (click)="load()">Reintentar</button></div> }
+  @else {
+    <div class="products-grid">
+      @for (character of characters(); track character.id) {
+        <article class="product-card">
+          <div class="image-container"><img crossorigin="anonymous" [src]="character.image" [alt]="character.name" width="300" height="300" /></div>
+          <div class="product-info">
+            <span class="category">{{ statusLabel(character.status) }}</span>
+            <h3>{{ character.name }}</h3><p>{{ character.species }}</p>
+            <p>Origen: {{ character.origin.name }}</p><p>Ubicación: {{ character.location.name }}</p>
+            <button type="button" [disabled]="collection.contains(character.id) || sending()" (click)="add(character)">{{ collection.contains(character.id) ? 'En tu colección' : 'Guardar personaje' }}</button>
+          </div>
+        </article>
+      } @empty { <p class="message">No hay personajes con esos filtros.</p> }
+    </div>
+  }
+  <nav class="pagination" aria-label="Páginas de personajes">
+    <button type="button" [disabled]="loading() || !info().prev" (click)="changePage(-1)">Anterior</button>
+    <span>Página {{ page() }} de {{ info().pages || 1 }}</span>
+    <button type="button" [disabled]="loading() || !info().next" (click)="changePage(1)">Siguiente</button>
+  </nav>
+</main>
+<app-collection />
+<footer><p>Explorador de Enrique · Datos de <a href="https://rickandmortyapi.com/">The Rick and Morty API</a></p></footer>
