@@ -196,7 +196,7 @@ export function createPushServer(env = process.env, deliver = webpush.sendNotifi
       return;
     }
     if (req.method !== 'POST') throw new RequestError(405, 'Método no admitido.');
-    if (req.headers.origin !== env.SHOPSTORE_ORIGIN) throw new RequestError(403, 'Origen no autorizado.');
+    if (!apps.get('shopstore').origins.includes(req.headers.origin)) throw new RequestError(403, 'Origen no autorizado.');
     if (path === '/api/shopstore/push') {
       if (!hasSession(req)) throw new RequestError(401, 'Inicia sesión para enviar avisos.');
       return send('shopstore', req, res);

@@ -14,15 +14,18 @@ test('cloud deployment uses its HTTPS origin, secure cookies and Angular route f
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const keys = webpush.generateVAPIDKeys();
   const origin = 'https://explorador.example.test';
+  const frontendOrigin = 'https://pwa.example.test';
   const config = cloudConfig({
     RENDER_EXTERNAL_URL: origin,
+    FRONTEND_ORIGIN: frontendOrigin,
     VAPID_PUBLIC_KEY: keys.publicKey, VAPID_PRIVATE_KEY: keys.privateKey,
     VAPID_SUBJECT: 'mailto:admin@example.test', PUSH_DATABASE: ':memory:',
     PUSH_SEND_TOKEN: 't'.repeat(32), SHOPSTORE_ADMIN_PASSWORD: 'p'.repeat(32),
     SHOPSTORE_DIR: directory,
   });
   assert.equal(config.SHOPSTORE_ORIGIN, origin);
-  assert.deepEqual(JSON.parse(config.PUSH_APPS).shopstore.origins, [origin]);
+  assert.deepEqual(JSON.parse(config.PUSH_APPS).shopstore.origins, [origin, frontendOrigin]);
+  assert.throws(() => cloudConfig({ RENDER_EXTERNAL_URL: origin, FRONTEND_ORIGIN: 'http://example.test' }), /HTTPS/);
   assert.throws(() => cloudConfig({ RENDER_EXTERNAL_URL: 'http://example.test' }), /HTTPS/);
   assert.throws(() => cloudConfig({ PUBLIC_ORIGIN: origin + '/path' }), /HTTPS/);
   assert.throws(() => cloudConfig({}), /URL HTTPS/);
@@ -41,6 +44,25 @@ test('cloud deployment uses its HTTPS origin, secure cookies and Angular route f
   });
   assert.equal(login.status, 303);
   assert.match(login.headers.get('set-cookie'), /; Secure/);
+  const frontendLogin = await fetch(base + '/api/shopstore/login.html', {
+    method: 'POST', redirect: 'manual', headers: { Origin: frontendOrigin },
+    body: new URLSearchParams({ password: config.SHOPSTORE_ADMIN_PASSWORD }),
+  });
+  assert.equal(frontendLogin.status, 303);
+  assert.match(frontendLogin.headers.get('set-cookie'), /HttpOnly; SameSite=Strict; Secure/);
+  const session = frontendLogin.headers.get('set-cookie').split(';')[0];
+  const fromFrontend = await fetch(base + '/api/shopstore/push', {
+    method: 'POST', headers: { Origin: frontendOrigin, Cookie: session, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Colección', body: 'Prueba sin destinatarios' }),
+  });
+  assert.deepEqual(await fromFrontend.json(), { enviadas: 0, expiradas: 0, fallidas: 0 });
+  const blocked = await fetch(base + '/api/shopstore/push', {
+    method: 'POST', headers: { Origin: 'https://untrusted.example.test', Cookie: session, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Colección', body: 'No autorizado' }),
+  });
+  assert.equal(blocked.status, 403);
+  const configRequest = await fetch(base + '/api/apps/shopstore/config', { headers: { Origin: frontendOrigin } });
+  assert.equal(configRequest.headers.get('access-control-allow-origin'), frontendOrigin);
 });
 
 test('isolates apps, protects sending, and removes expired and cancelled subscriptions', async (t) => {

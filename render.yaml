@@ -7,6 +7,8 @@ services:
     dockerContext: .
     healthCheckPath: /health
     envVars:
+      - key: FRONTEND_ORIGIN
+        value: https://pwa-app-9e60.onrender.com
       - key: VAPID_PUBLIC_KEY
         sync: false
       - key: VAPID_PRIVATE_KEY
